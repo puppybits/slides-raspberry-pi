@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link href="css/reset.css" rel="stylesheet" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=1024" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <link rel="shortcut icon" href="css/favicon.png" />
+    <link rel="apple-touch-icon" href="css/apple-touch-icon.png" />
+    <!-- Code Prettifier: -->
+<link href="css/highlight.css" type="text/css" rel="stylesheet" />
+<script type="text/javascript" src="js/highlight.pack.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+    <link href="css/style.css" rel="stylesheet" />
+    <link href="http://fonts.googleapis.com/css?family=Lato:300,900" rel="stylesheet" />
+
+  </head>
+
+  <body>
+  <div class="fallback-message">
+  <p>Your browser <b>doesn't support the features required</b> by impress.js, so you are presented with a simplified version of this presentation.</p>
+  <p>For the best experience please use the latest <b>Chrome</b>, <b>Safari</b> or <b>Firefox</b> browser.</p>
+  </div>
+    <div id="impress">
+    <div class='step' >
+    
+<!--gem install mdpress-->
+
+<!--https://github.com/egonSchiele/mdpress-->
+
+<h1>Raspberry Pi</h1>
+</div>
+      <div class='step' >
+    
+<p><img src="board.jpg" style="height: 70%"></p>
+</div>
+      <div class='step' >
+    
+<p><img src="layout.png" style="height: 70%"></p>
+</div>
+      <div class='step' >
+    
+<h1>Turning the Pi into a wireless access point</h1>
+</div>
+      <div class='step' >
+    
+<h1>Prequel</h1>
+
+<ol>
+<li><p>check your wireless driver<br>
+<code class='inline prettyprint'>lsusb</code>
+.</p>
+<pre><code class='prettyprint '>Bus 001 Device 002: ID 0424:9512 Standard Microsystems Corp. 
+Bus 001 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
+Bus 001 Device 003: ID 0424:ec00 Standard Microsystems Corp. 
+Bus 001 Device 004: ID 050d:2103 Belkin Components F7D2102 802.11n N300 Micro Wireless Adapter v3000 [Realtek RTL8192CU]
+Bus 001 Device 005: ID 05e3:0608 Genesys Logic, Inc. USB-2.0 4-Port HUB
+Bus 001 Device 006: ID 0bc2:a013 Seagate RSS LLC 
+</code></pre></li>
+<li><p>if you have a standard nl80211 driver you&#39;re fine; otherwise your need a specially built binary. You can build it from scratch or download a pre-built version.</p></li>
+</ol>
+
+<p><code class='inline prettyprint'>pushd ~ && sudo wget http://dl.dropbox.com/u/1663660/hostapd/hostapd</code></p>
+</div>
+      <div class='step' >
+    
+<h1>Enable Port Forwarding</h1>
+
+<ol>
+<li><p>turn on port forwarding w/o having to reboot </p>
+
+<p><code class='inline prettyprint'>sudo sysctl net.ipv4.ip_forward=1</code></p></li>
+<li><p>make port forwarding on by default </p>
+
+<p><code class='inline prettyprint'>sudo nano /etc/sysctl.conf</code></p></li>
+</ol>
+
+<p><strong>turn on forwarding in the config file</strong>  </p>
+<pre><code class='prettyprint '>net.ipv4.ip_forward=1
+</code></pre></div>
+      <div class='step' >
+    
+<h1>Create a hotspot</h1>
+
+<ol>
+<li><p>install the host access port deamon</p>
+
+<p><code class='inline prettyprint'>sudo apt-get install hostapd</code>  </p>
+
+<p><code class='inline prettyprint'>sudo nano /etc/default/hostapd</code></p>
+<pre><code class='prettyprint '># create config file
+DAEMON_CONF="/etc/hostapd/hostapd.conf"
+</code></pre></li>
+<li><p>if you have a RealTek then manually install the updated binary </p>
+<pre><code class='prettyprint '>sudo cp ~/hostapd /usr/sbin/hostapd
+sudo chmod 777 /usr/sbin/hostapd
+</code></pre></li>
+</ol>
+</div>
+      <div class='step' >
+    
+<h1>Configure the hotspot</h1>
+
+<ol>
+<li><p>configure the hotspot. for now just use a open network for testing
+<code class='inline prettyprint'>sudo nano /etc/hostapd/hostapf.conf</code></p>
+<pre><code class='prettyprint '># create new config file
+interface=wlan0 # select the wireless device
+driver=rtl871xdrv # set the drive (normally the driver is "nl80211")
+bridge=br0
+
+ctrl_interface=/var/run/hostapd # set location for the running process
+ctrl_interface_group=0 # params for the hostapd deamon
+</code></pre></li>
+</ol>
+</div>
+      <div class='step' >
+    
+<h2>Configure the hotspot (continued)</h2>
+<pre><code class='prettyprint '>    # logging
+    logger_syslog=-1
+    logger_syslog_level=2
+    logger_stdout=-1
+    logger_stdout_level=2
+    dump_file=/tmp/hostapd.dump
+
+    ssid=pi-fi                       # wireless name    
+    hw_mode=g                        # G network (N is configured elsewhere)
+    channel=1                        # channel for the hotspot
+
+    macaddr_acl=0                    # accept mac unless on the deny list
+</code></pre></div>
+      <div class='step' >
+    
+<h1>Setup the DHCP server</h1>
+
+<p>The DHCP server is responsible for assigning IPs to the devices that connect.</p>
+
+<ol>
+<li><p>Install DNSMasq <strong>this program can handle DHCP, DNS and masquerading (routing between ips)</strong></p>
+
+<p><code class='inline prettyprint'>sudo apt-get install dnsmasq</code></p></li>
+<li><p>configure the dhcp server</p>
+
+<p><code class='inline prettyprint'>sudo nano /etc/dnsmasq.conf</code></p>
+<pre><code class='prettyprint '>interface=wlan0                                 # DHCP server listens only on wlan0
+dhcp-range=10.0.0.3,10.0.0.120,255.0.0.0,120h   # dhcp ip range, subnet mask and lease time
+</code></pre></li>
+</ol>
+</div>
+      <div class='step' >
+    
+<h2>[Checkpoint] Hotspot Create and IP forwarding</h2>
+
+<p>Check to see if everything is working so far.</p>
+
+<ol>
+<li>Make sure everything is up.</li>
+</ol>
+
+<p><code class='inline prettyprint'>sudo ifconfig wlan0 up</code></p>
+
+<p><code class='inline prettyprint'>sudo service hostapd restart</code></p>
+
+<p><code class='inline prettyprint'>sudo service dsnmasq restart</code></p>
+
+<ol>
+<li>try you device to see if it&#39;s connecting and validate it&#39;s getting a 10.0.0.x ip address.</li>
+<li>You&#39;ll be able to browse by IP address at this point</li>
+</ol>
+</div>
+      <div class='step' >
+    
+<h2>[Checkpoint] Hotspot Create and IP forwarding - Troubleshooting</h2>
+
+<ol>
+<li>Troubleshooting.<br></li>
+</ol>
+
+<p>install and check dhcpdump to see if clients are getting through the 4 stages make sure the wireless is up. 
+<code class='inline prettyprint'>ifconfig</code> and <code class='inline prettyprint'>sudo ifconfig wlan0 up</code>  </p>
+
+<p>Download DHCPdump <a href="http://bentis.calepin.co/handy-tools-for-debugging-dhcp-on-linux.html">http://bentis.calepin.co/handy-tools-for-debugging-dhcp-on-linux.html</a> for further troubleshooting.</p>
+</div>
+      <div class='step' >
+    
+<h1>Routing</h1>
+
+<p>Sending internet and other data to remote devices.  </p>
+
+<ol>
+<li>Turn off simple routing</li>
+</ol>
+
+<p><code class='inline prettyprint'>sudo nano /etc/sysctl.conf</code></p>
+
+<p>comment out the simple forwarding</p>
+<pre><code class='prettyprint '>#net.ipv4.ip_forward=1
+</code></pre></div>
+      <div class='step' >
+    
+<h1>Routing (continued)</h1>
+
+<ol>
+<li><p>Install a firewall/router
+<code class='inline prettyprint'>sudo apt-get install iptables</code></p></li>
+<li><p>update the DHCP server
+<code class='inline prettyprint'>sudo nano /etc/dnsmasq.conf</code></p>
+
+<p>dhcp-option=3,10.0.0.1     # set the routing</p></li>
+</ol>
+</div>
+      <div class='step' >
+    
+<h1>Routing (setup IP Tables)</h1>
+
+<ol>
+<li>setup routing rules are startup<br></li>
+</ol>
+
+<p><code class='inline prettyprint'>touch /etc/network/if-up.d/routing.sh</code></p>
+
+<p><code class='inline prettyprint'>sudo nano /etc/network/if-up.d/routing.sh</code></p>
+<pre><code class='prettyprint '>    iptables -F
+    iptables -X
+
+    iptables -A INPUT -i lo -j ACCEPT
+    iptables -A OUTPUT -o lo -j ACCEPT
+    iptables -A INPUT -i wlan0 -j ACCEPT
+    iptables -A OUTPUT -o wlan0 -j ACCEPT
+
+    iptables -A POSTROUTING -t nat -o eth0 -j MASQUERADE
+    iptables -A FORWARD -i wlan0 -j ACCEPT
+</code></pre>
+<p>allow the script the permissions to run
+<code class='inline prettyprint'>sudo chmod +x /etc/network/if-up.d/routing.sh</code></p>
+</div>
+      <div class='step' >
+    
+<h1>Why Did I do all this?</h1>
+</div>
+      <div class='step' >
+    
+<h1>Wireless, Battery powered NAS</h1>
+
+<p><img src="airplay.jpg"></p>
+</div>
+      <div class='step' >
+    
+<h1>Other uses of the raspberry pi</h1>
+</div>
+      <div class='step' >
+    
+<h1>Quake</h1>
+
+<p><a href="http://youtu.be/e_mDuJuvZjI">http://youtu.be/e_mDuJuvZjI</a></p>
+</div>
+      <div class='step' >
+    
+<h1>XBMC - Use the default TV remote as a &quot;keyboard&quot;</h1>
+
+<p><a href="http://youtu.be/2XHcGwIg_8g">http://youtu.be/2XHcGwIg_8g</a></p>
+</div>
+      <div class='step' >
+    
+<h1>GPIO (General Purpose Input and Output)</h1>
+
+<ul>
+<li>connect sensors, motors, LEDs, etc to Raspberry Pi</li>
+</ul>
+</div>
+      <div class='step' >
+    
+<h1>Internet Radio</h1>
+
+<p><img src="radio.jpg" style="width:50%; float:left">
+<img src="lcd.jpg" style="width:50%"; float: right"></p>
+
+<ul>
+<li>$25 LCD w/ navigation control buttons</li>
+</ul>
+</div>
+      <div class='step' >
+    
+<h2>Web IO Pi</h2>
+
+<h2>Webiopi <a href="http://code.google.com/p/webiopi/">http://code.google.com/p/webiopi/</a></h2>
+
+<ul>
+<li>web interface to connect GPIO to Python server</li>
+<li>control via JavaScript</li>
+</ul>
+
+<p><a href="webiopi.png"></a></p>
+</div>
+      <div class='step' >
+    
+<h2>Web IO Pi</h2>
+
+<p><img src="webiopi-screen.png" style="width: 80%"></p>
+</div>
+      <div class='step' >
+    
+<h2>Home automation over Twitter, Facebook, FourSquare, …</h2>
+
+<p><a href="http://youtu.be/Guhf7eohl98">http://youtu.be/Guhf7eohl98</a></p>
+
+<ul>
+<li>$20 bread board</li>
+</ul>
+</div>
+      <div class='step' >
+    
+<h2>camera</h2>
+
+<p><img src="camera.png"></p>
+
+<p><a href="http://blog.tkjelectronics.dk/2013/06/how-to-stream-video-and-audio-from-a-raspberry-pi-with-no-latency/">http://blog.tkjelectronics.dk/2013/06/how-to-stream-video-and-audio-from-a-raspberry-pi-with-no-latency/</a></p>
+
+<ul>
+<li>$25 5MP Camera</li>
+</ul>
+</div>
+      <div class='step' >
+    
+<h1>Ziphius Robot</h1>
+
+<ul>
+<li>aquatic robot built with raspberry pi and camera</li>
+</ul>
+
+<p><img src="ro.jpg" style="width: 40%">
+<img src="ro-spec.png" style="width: 40%">
+<a href="http://www.kickstarter.com/projects/ziphius/ziphius-the-aquatic-drone?ref=live">http://www.kickstarter.com/projects/ziphius/ziphius-the-aquatic-drone?ref=live</a></p>
+</div>
+      <div class='step' >
+    
+<h1>What did use my Pi for?</h1>
+</div>
+      <div class='step' >
+    
+<h1>1. Apartment hunter</h1>
+</div>
+      <div class='step' >
+    
+<h2>Craigslist Apartment hunter - v1</h2>
+
+<ul>
+<li>Had my Pi sitting in my hotel room and send me a SMS text when there was a new posting (with my criteria) on craiglist</li>
+<li>every minute reload the page. </li>
+<li>filter the page if any results match</li>
+<li>send a SMS with the price and link</li>
+</ul>
+</div>
+      <div class='step' >
+    
+<h2>Craigslist Apartment hunter - v1</h2>
+
+<p><img src="apt.PNG" style="width:30%"></p>
+</div>
+      <div class='step' >
+    
+<h2>but that was too much work for me… so i outsourced my wife</h2>
+</div>
+      <div class='step' >
+    
+<h2>Craigslist Apartment hunter - v2</h2>
+
+<ul>
+<li>when match found, navigate to the link</li>
+<li>capture HTML and email the entire posting w/ images to my wife</li>
+</ul>
+</div>
+      <div class='step' >
+    
+<h1>2. Bank Balance Pusher</h1>
+</div>
+      <div class='step' >
+    
+<h1>Bank Balance Pusher</h1>
+
+<ul>
+<li>when i get home I get an notified on my phone what my bank balance is</li>
+</ul>
+</div>
+      <div class='step' >
+    
+<h1>bottle - Python micro web server</h1>
+
+<ul>
+<li>Super simple web server</li>
+<li><p><a href="bottle.py.org">bottle.py.org</a></p>
+<pre><code class='prettyprint '>from bottle import route, run, template
+
+@route('/hello/<name>')
+def index(name='World'):
+        return template('<b>Hello {{name}}</b>!', name=name)
+run(host='localhost', port=8080)
+</code></pre></li>
+</ul>
+</div>
+      <div class='step' >
+    
+<h1>Get Bank balance</h1>
+<pre><code class='prettyprint python'>from ofxclient import Institution
+inst = Institution(
+        id = '54324',
+        org = 'America First Credit Union',
+        url = 'https://ofx.americafirst.com',
+        username = '',
+        password = ''
+)
+
+accounts = inst.accounts()
+for a in accounts:
+    download  = a.download(days=5)
+    statement = a.statement(days=5)
+    print statement.balance
+</code></pre></div>
+      <div class='step' >
+    
+<h1>iPhone poller</h1>
+
+<ul>
+<li>raspberry pi is my home wireless router</li>
+<li>iPhone app that runs in the background with hardcoded geofence for my house</li>
+<li>when i get home the iPhone sends a request to my Bottle server that get my bank balance and sends a local notification to my lock screen</li>
+</ul>
+</div>
+      <div class='step' >
+    
+<h1>take aways</h1>
+
+<ul>
+<li>python connects everything together</li>
+<li>raspberry pi goes any where ssh to use any device</li>
+<li><p>having a full blown computer to programming in Java, Ruby, Python and tie in embedded sensors and devices opens up a lot of possibilities</p></li>
+<li><p>go to next page for little bits bonus</p></li>
+</ul>
+</div>
+      <div class='step' >
+    
+<h1>Bouns</h1>
+</div>
+      <div class='step' >
+    
+<h1>Little Bits</h1>
+
+<ul>
+<li><a href="http://littlebits.cc">http://littlebits.cc</a></li>
+<li>Legos for electronics</li>
+<li>Built a lightbox out of legos, a page magnifier from Barnes and Noble and some little bits.<br>
+<img src="light.jpg" style="width:40%; float: left">
+<img src="light2.jpg" style="width:40%; float: right"></li>
+</ul>
+</div>
+      <div class='step' >
+    
+      </div>
+    <script src="js/impress.js"></script>
+    <script>impress().init();</script>
+  </body>
+</html>
+    
